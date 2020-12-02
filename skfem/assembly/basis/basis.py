@@ -1,4 +1,6 @@
-from typing import List, Any, Tuple, Dict, Union, Optional
+from typing import List, Any, Tuple,\
+    Dict, TypeVar, Union,\
+    Optional
 
 import numpy as np
 from numpy import ndarray
@@ -6,6 +8,9 @@ from numpy import ndarray
 from skfem.assembly.dofs import Dofs
 from skfem.element.discrete_field import DiscreteField
 from skfem.element.element_composite import ElementComposite
+
+
+BasisType = TypeVar('BasisType', bound='Basis')
 
 
 class Basis:
@@ -19,12 +24,8 @@ class Basis:
     """
 
     tind: ndarray = None
-    dx: ndarray = None
-    basis: List[ndarray] = [None]
-    X: ndarray = None
-    W: ndarray = None
 
-    def __init__(self, mesh, elem, mapping=None, quadrature=None):
+    def __init__(self, mesh, elem, mapping=None):
 
         self.mapping = mesh.mapping() if mapping is None else mapping
 
@@ -94,7 +95,6 @@ class Basis:
 
         Facets can be queried from :class:`~skfem.mesh.Mesh` objects:
 
-        >>> from skfem import MeshTri
         >>> m = MeshTri()
         >>> m.refine()
         >>> m.facets_satisfying(lambda x: x[0] == 0)
@@ -102,11 +102,9 @@ class Basis:
 
         This corresponds to a list of facet indices that can be passed over:
 
-        >>> import numpy as np
-        >>> from skfem import InteriorBasis, ElementTriP1
         >>> basis = InteriorBasis(m, ElementTriP1())
-        >>> basis.find_dofs({'left': np.array([1, 5])})['left'].all()
-        array([0, 2, 5])
+        >>> basis.find_dofs({'left': np.array([1, 5])})['left']
+        Dofs(nodal={'u': array([0, 2, 5])}, facet={}, edge={}, interior={})
 
         Parameters
         ----------
@@ -261,7 +259,7 @@ class Basis:
             return output
         raise ValueError("Basis.elem has only a single component!")
 
-    def split_bases(self) -> List['Basis']:
+    def split_bases(self) -> List[BasisType]:
         """Return Basis objects for the solution components."""
         if isinstance(self.elem, ElementComposite):
             return [type(self)(self.mesh, e, self.mapping,
@@ -273,7 +271,7 @@ class Basis:
     def quadrature(self):
         return self.X, self.W
 
-    def split(self, x: ndarray) -> List[Tuple[ndarray, 'Basis']]:
+    def split(self, x: ndarray) -> List[Tuple[ndarray, BasisType]]:
         """Split a solution vector into components."""
         xs = [x[ix] for ix in self.split_indices()]
         return list(zip(xs, self.split_bases()))

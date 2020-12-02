@@ -4,6 +4,7 @@ import numpy as np
 from numpy import ndarray
 
 from .mesh3d import Mesh3D
+from ..mesh import MeshType
 
 
 class MeshHex(Mesh3D):
@@ -99,15 +100,15 @@ class MeshHex(Mesh3D):
         self._build_mappings()
 
     @classmethod
-    def init_refdom(cls: Type) -> Mesh3D:
+    def init_refdom(cls: Type[MeshType]):
         """Initialise a mesh of the reference domain."""
         return cls()
 
     @classmethod
-    def init_tensor(cls: Type,
+    def init_tensor(cls: Type[MeshType],
                     x: ndarray,
                     y: ndarray,
-                    z: ndarray) -> Mesh3D:
+                    z: ndarray) -> MeshType:
         """Initialise a tensor product mesh.
 
         Parameters
@@ -321,8 +322,7 @@ class MeshHex(Mesh3D):
     def save(self,
              filename: str,
              point_data: Optional[Dict[str, ndarray]] = None,
-             cell_data: Optional[Dict[str, ndarray]] = None,
-             **kwargs):
+             cell_data: Optional[Dict[str, ndarray]] = None):
         """Export the mesh and fields using meshio. (Hexahedron version.)
 
         Parameters

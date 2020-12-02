@@ -3,7 +3,7 @@ from typing import Optional, Type, Dict
 import numpy as np
 from numpy import ndarray
 
-from .mesh2d import Mesh2D
+from .mesh2d import Mesh2D, MeshType
 
 
 class MeshTri(Mesh2D):
@@ -97,9 +97,9 @@ class MeshTri(Mesh2D):
         self._build_mappings(sort_t=sort_t)
 
     @classmethod
-    def init_tensor(cls: Type,
+    def init_tensor(cls: Type[MeshType],
                     x: ndarray,
-                    y: ndarray) -> Mesh2D:
+                    y: ndarray) -> MeshType:
         r"""Initialize a tensor product mesh.
 
         The mesh topology is as follows::
@@ -150,7 +150,7 @@ class MeshTri(Mesh2D):
         return cls(p, t.astype(np.int64))
 
     @classmethod
-    def init_symmetric(cls: Type) -> Mesh2D:
+    def init_symmetric(cls) -> MeshType:
         r"""Initialize a symmetric mesh of the unit square.
 
         The mesh topology is as follows::
@@ -175,7 +175,7 @@ class MeshTri(Mesh2D):
         return cls(p, t)
 
     @classmethod
-    def init_sqsymmetric(cls: Type) -> Mesh2D:
+    def init_sqsymmetric(cls: Type[MeshType]) -> MeshType:
         r"""Initialize a symmetric mesh of the unit square.
 
         The mesh topology is as follows::
@@ -204,7 +204,7 @@ class MeshTri(Mesh2D):
         return cls(p, t)
 
     @classmethod
-    def init_refdom(cls: Type) -> Mesh2D:
+    def init_refdom(cls: Type[MeshType]) -> MeshType:
         r"""Initialize a mesh that includes only the reference triangle.
 
         The mesh topology is as follows::
@@ -226,7 +226,7 @@ class MeshTri(Mesh2D):
         return cls(p, t)
 
     @classmethod
-    def init_lshaped(cls: Type) -> Mesh2D:
+    def init_lshaped(cls: Type[MeshType]) -> MeshType:
         r"""Initialize a mesh for the L-shaped domain.
 
         The mesh topology is as follows::
@@ -253,8 +253,8 @@ class MeshTri(Mesh2D):
         return cls(p, t)
 
     @classmethod
-    def init_circle(cls: Type,
-                    Nrefs: int = 3) -> Mesh2D:
+    def init_circle(cls: Type[MeshType],
+                    Nrefs: int = 3) -> MeshType:
         r"""Initialize a circle mesh.
 
         Works by repeatedly refining the following mesh and moving
@@ -285,7 +285,7 @@ class MeshTri(Mesh2D):
                       [0, 1, 4],
                       [0, 2, 3],
                       [0, 3, 4]], dtype=np.intp).T
-        m = cls(p, t)
+        m = MeshTri(p, t)
         for _ in range(Nrefs):
             m.refine()
             D = m.boundary_nodes()
@@ -338,8 +338,8 @@ class MeshTri(Mesh2D):
         t2f = self.t2f + sz
 
         # new vertices are the midpoints of edges
-        new_p = .5 * np.vstack((p[0, e[0]] + p[0, e[1]],
-                                p[1, e[0]] + p[1, e[1]]))
+        new_p = 0.5 * np.vstack((p[0, e[0]] + p[0, e[1]],
+                                 p[1, e[0]] + p[1, e[1]]))
         self.p = np.hstack((p, new_p))
 
         # build new triangle definitions
@@ -360,12 +360,12 @@ class MeshTri(Mesh2D):
         self._build_mappings()
 
         # finish mapping of indices between old and new facets
-        new_facets[0, t2f[2] - sz] = self.t2f[2, ix0]
-        new_facets[0, t2f[1] - sz] = self.t2f[2, ix1]
-        new_facets[0, t2f[0] - sz] = self.t2f[0, ix0]
-        new_facets[1, t2f[2] - sz] = self.t2f[0, ix2]
-        new_facets[1, t2f[1] - sz] = self.t2f[2, ix2]
-        new_facets[1, t2f[0] - sz] = self.t2f[0, ix1]
+        new_facets[0, t2f[2, :] - sz] = self.t2f[2, ix0]
+        new_facets[0, t2f[1, :] - sz] = self.t2f[2, ix1]
+        new_facets[0, t2f[0, :] - sz] = self.t2f[0, ix0]
+        new_facets[1, t2f[2, :] - sz] = self.t2f[0, ix2]
+        new_facets[1, t2f[1, :] - sz] = self.t2f[2, ix2]
+        new_facets[1, t2f[0, :] - sz] = self.t2f[0, ix1]
 
         self._fix_boundaries(new_facets)
 
@@ -463,7 +463,7 @@ class MeshTri(Mesh2D):
         from skfem.mapping import MappingAffine
         return MappingAffine(self)
 
-    def element_finder(self, mapping=None):
+    def element_finder(self):
         from matplotlib.tri import Triangulation
 
         return Triangulation(self.p[0],

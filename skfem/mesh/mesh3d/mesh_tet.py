@@ -2,9 +2,9 @@ from typing import Type, Optional, Dict
 
 import numpy as np
 from numpy import ndarray
-from scipy.spatial import cKDTree
 
 from .mesh3d import Mesh3D
+from ..mesh import MeshType
 
 
 class MeshTet(Mesh3D):
@@ -95,7 +95,7 @@ class MeshTet(Mesh3D):
         self._build_mappings()
 
     @classmethod
-    def init_refdom(cls: Type) -> Mesh3D:
+    def init_refdom(cls: Type[MeshType]) -> MeshType:
         """Initialise a mesh of the reference domain."""
         p = np.array([[0., 0., 0.],
                       [1., 0., 0.],
@@ -105,10 +105,10 @@ class MeshTet(Mesh3D):
         return cls(p, t)
 
     @classmethod
-    def init_tensor(cls: Type,
+    def init_tensor(cls: Type[MeshType],
                     x: ndarray,
                     y: ndarray,
-                    z: ndarray) -> Mesh3D:
+                    z: ndarray) -> MeshType:
         """Initialise a tensor product mesh.
 
         Parameters
@@ -172,39 +172,6 @@ class MeshTet(Mesh3D):
         T = np.hstack((T, t[[0, 3, 6, 7]]))
 
         return cls(p, T.astype(np.int64))
-
-    @classmethod
-    def init_ball(cls: Type,
-                  Nrefs: int = 3) -> Mesh3D:
-        r"""Initialize a ball mesh.
-
-        Parameters
-        ----------
-        Nrefs
-            Number of refinements, by default 3.
-
-        """
-        p = np.array([[0., 0., 0.],
-                      [1., 0., 0.],
-                      [0., 1., 0.],
-                      [0., 0., 1.],
-                      [-1., 0., 0.],
-                      [0., -1., 0.],
-                      [0., 0., -1.]]).T
-        t = np.array([[0, 1, 2, 3],
-                      [0, 4, 5, 6],
-                      [0, 1, 2, 6],
-                      [0, 1, 3, 5],
-                      [0, 2, 3, 4],
-                      [0, 4, 5, 3],
-                      [0, 4, 6, 2],
-                      [0, 5, 6, 1]], dtype=np.intp).T
-        m = cls(p, t)
-        for _ in range(Nrefs):
-            m.refine()
-            D = m.boundary_nodes()
-            m.p[:, D] = m.p[:, D] / np.linalg.norm(m.p[:, D], axis=0)
-        return m
 
     def _build_mappings(self):
         """Build element-to-facet, element-to-edges, etc. mappings."""
@@ -374,33 +341,6 @@ class MeshTet(Mesh3D):
         self.t = newt
 
         self._build_mappings()
-
-    def element_finder(self, mapping=None):
-        """Return a function handle from location to element index.
-
-        Parameters
-        ----------
-        mapping
-            The affine mapping for the mesh.
-
-        """
-        if mapping is None:
-            raise NotImplementedError("Mapping must be provided.")
-
-        tree = cKDTree(np.mean(self.p[:, self.t], axis=1).T)
-
-        def finder(x, y, z):
-            ix = tree.query(np.array([x, y, z]).T, 5)[1].flatten()
-            X = mapping.invF(np.array([x, y, z])[:, None], ix)
-            inside = (
-                (X[0] >= 0)
-                * (X[1] >= 0)
-                * (X[2] >= 0)
-                * (1 - X[0] - X[1] - X[2] >= 0)
-            )
-            return np.array([ix[np.argmax(inside, axis=0)]]).flatten()
-
-        return finder
 
     def shapereg(self):
         """Return the largest shape-regularity constant."""

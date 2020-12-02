@@ -24,7 +24,9 @@ Triangular mesh with 8 vertices and 6 elements.
 >>> MeshTri.init_tensor([0.0, 1.0], [0.0, 1.0, 2.0])
 Triangular mesh with 6 vertices and 4 elements.
 
-A list of constructors can be found in the class docstring.
+A list of constructors can be found in the class docstring:
+
+>>> help(MeshTri)
 
 Importing from external formats can be done with the constructor
 :meth:`~skfem.mesh.Mesh.load`.
@@ -33,8 +35,7 @@ Importing from external formats can be done with the constructor
 
 from .mesh import Mesh, MeshType
 from .mesh_line import MeshLine
-from .mesh2d import (Mesh2D, MeshTri, MeshQuad,
-                     MeshTri2, MeshQuad2)
+from .mesh2d import Mesh2D, MeshTri, MeshQuad
 from .mesh3d import Mesh3D, MeshTet, MeshHex
 
 
@@ -44,9 +45,7 @@ __all__ = [
     "MeshLine",
     "Mesh2D",
     "MeshTri",
-    "MeshTri2",
     "MeshQuad",
-    "MeshQuad2",
     "Mesh3D",
     "MeshTet",
     "MeshHex"]

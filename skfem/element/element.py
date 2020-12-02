@@ -1,14 +1,14 @@
-from typing import Optional, List, Type
+from typing import Optional, List
 
 import numpy as np
 from numpy import ndarray
 
-from skfem.mesh import Mesh
+from ..mesh import Mesh
 from .discrete_field import DiscreteField
 
 
-class Element:
-    """Evaluate finite element basis.
+class Element():
+    """Finite element.
 
     Attributes
     ----------
@@ -23,9 +23,18 @@ class Element:
     dim
         The spatial dimension.
     maxdeg
-        Polynomial degree of the basis. Used to find quadrature rules.
+        Polynomial degree of the basis. Used to calculate quadrature rules.
     dofnames
-        A list of strings indicating the DOF types. See :ref:`finddofs`.
+        A list of strings that indicate DOF types. Different possibilities:
+        - 'u' indicates that it is the point value
+        - 'u^1' indicates the first vectorial component
+        - 'u^n' indicates the normal component
+        - 'u^t' indicates the tangential component
+        - 'u_x' indicates the derivative wrt x
+        - 'u_n' indicates the normal derivative
+        - ...
+    mesh_type
+        Mesh type for calculating number of edges, etc.
 
     """
     nodal_dofs: int = 0
@@ -35,7 +44,7 @@ class Element:
     dim: int = -1
     maxdeg: int = -1
     dofnames: List[str] = []
-    mesh_type: Type = Mesh
+    mesh_type: Mesh = None
 
     def orient(self, mapping, i, tind=None):
         """Orient basis functions. By default all = 1."""
@@ -81,8 +90,14 @@ class Element:
     def _index_error(cls):
         raise ValueError("Index larger than the number of basis functions.")
 
-    def _bfun_counts(self) -> ndarray:
-        """Count number of nodal/edge/facet/interior basis functions."""
+    def _bfun_counts(self):
+        """Count number of nodal/edge/facet/interior basis functions.
+
+        Returns
+        -------
+        4-tuple of basis function counts.
+
+        """
         return np.array([self.nodal_dofs * self.mesh_type.t.shape[0],
                          self.edge_dofs * self.mesh_type.t2e.shape[0]
                          if hasattr(self.mesh_type, 'edges') else 0,

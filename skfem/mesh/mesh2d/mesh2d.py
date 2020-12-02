@@ -1,7 +1,7 @@
 import numpy as np
 from numpy import ndarray
 
-from skfem.mesh import Mesh
+from skfem.mesh import Mesh, MeshType
 
 
 class Mesh2D(Mesh):
@@ -18,10 +18,7 @@ class Mesh2D(Mesh):
     f2t = np.zeros((2, 0), dtype=np.int64)
     t2f = np.array([], dtype=np.int64)
 
-    def __init__(self, *args, **kwargs):
-        super(Mesh2D, self).__init__()
-
-    def mirror(self, a: float, b: float, c: float) -> Mesh:
+    def mirror(self, a: float, b: float, c: float) -> MeshType:
         """Mirror a mesh by the line :math:`ax + by + c = 0`.  Returns a new
         :class:`~skfem.mesh.Mesh` object."""
         tmp = -2. * (a * self.p[0] + b * self.p[1] + c) / (a ** 2 + b ** 2)

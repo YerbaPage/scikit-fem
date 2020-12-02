@@ -1,5 +1,4 @@
 import warnings
-from typing import Type
 
 import numpy as np
 from numpy.polynomial.legendre import Legendre
@@ -12,7 +11,7 @@ class ElementLinePp(ElementH1):
 
     nodal_dofs = 1
     dim = 1
-    mesh_type: Type = MeshLine
+    mesh_type = MeshLine
 
     def __init__(self, p):
         if p < 1:

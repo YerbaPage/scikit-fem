@@ -12,16 +12,18 @@ import scipy.sparse.linalg as spl
 from numpy import ndarray
 from scipy.sparse import spmatrix
 
+import pyamg
+
 from skfem.assembly import asm, BilinearForm, LinearForm, DofsView
 from skfem.assembly.basis import Basis
 from skfem.element import ElementVectorH1
 
 
+
 # custom types for describing input and output values
 
-
-LinearSolver = Callable[..., ndarray]
-EigenSolver = Callable[..., Tuple[ndarray, ndarray]]
+LinearSolver = Callable[[spmatrix, ndarray], ndarray]
+EigenSolver = Callable[[spmatrix, spmatrix], Tuple[ndarray, ndarray]]
 CondensedSystem = Union[spmatrix,
                         Tuple[spmatrix, ndarray],
                         Tuple[spmatrix, spmatrix],
@@ -82,6 +84,91 @@ def solver_direct_scipy(**kwargs) -> LinearSolver:
         return spl.spsolve(A, b, **kwargs)
     return solver
 
+def solver_iter_mgcg(krylov: Optional[LinearSolver] = spl.cg,
+                       verbose: Optional[bool] = False,
+                       **kwargs) -> LinearSolver:
+    """MGCG iterative linear solver.
+
+    Parameters
+    ----------
+    krylov
+        A Krylov iterative linear solver, like, and by default,
+        :func:`scipy.sparse.linalg.cg`
+    verbose
+        If True, print the norm of the iterate.
+
+    Returns
+    -------
+    LinearSolver
+        A solver function that can be passed to :func:`solve`.
+
+    """
+    def callback(x):
+        if verbose:
+            print(np.linalg.norm(x))
+
+    def solver(A, b, **solve_time_kwargs):
+        kwargs.update(solve_time_kwargs)
+
+        import pyamg
+        ml = pyamg.ruge_stuben_solver(A)
+        kwargs['M'] = ml.aspreconditioner() # params to be developed
+        
+        sol, info = krylov(A, b, **{'callback': callback, **kwargs})
+        if info > 0:
+            warnings.warn("Convergence not achieved!")
+        elif info == 0 and verbose:
+            print(f"{krylov.__name__} converged to "
+                  + f"tol={kwargs.get('tol', 'default')} and "
+                  + f"atol={kwargs.get('atol', 'default')}")
+        return sol
+
+    return solver
+
+def solver_iter_pyamg(verbose: Optional[bool] = False,
+                       **kwargs) -> LinearSolver:
+    """Pyamg iterative linear solver.
+
+    Parameters
+    ----------
+    verbose
+        If True, print the norm of the iterate.
+
+    Any remaining keyword arguments are passed on to the solver, in particular
+    tol and atol, the tolerances, maxiter, and M, the preconditioner.  If the
+    last is omitted, a diagonal preconditioner is supplied using
+    :func:`skfem.utils.build_pc_diag`.
+
+    Returns
+    -------
+    LinearSolver
+        A solver function that can be passed to :func:`solve`.
+
+    """
+    
+    def my_pyamg(A, b, **kwargs):
+        '''
+        solver for pyamg
+        '''
+        import pyamg
+        ml = pyamg.ruge_stuben_solver(A)
+        # print(ml)
+        x = ml.solve(b, tol=1e-10)
+        return x, np.linalg.norm(b-A*x)
+
+    def callback(x):
+        if verbose:
+            print(np.linalg.norm(x))
+
+    def solver(A, b, **solve_time_kwargs):
+        kwargs.update(solve_time_kwargs)
+        sol, info = my_pyamg(A, b, **{'callback': callback, **kwargs})
+        if info > 1 and verbose:
+            print('Warning: residual norm =', info)
+        return sol
+
+    return solver
+
 
 def solver_iter_krylov(krylov: Optional[LinearSolver] = spl.cg,
                        verbose: Optional[bool] = False,
@@ -113,8 +200,16 @@ def solver_iter_krylov(krylov: Optional[LinearSolver] = spl.cg,
 
     def solver(A, b, **solve_time_kwargs):
         kwargs.update(solve_time_kwargs)
-        if 'M' not in kwargs:
+        pre = False
+        if 'Precondition' in kwargs:
+            if kwargs['Precondition'] == True:
+                pre = True
+            kwargs.pop('Precondition')
+        if 'M' not in kwargs and pre:
+            # print('build_pc_diag(A) enabled')
+            # pass
             kwargs['M'] = build_pc_diag(A)
+        # print(kwargs['M'])
         sol, info = krylov(A, b, **{'callback': callback, **kwargs})
         if info > 0:
             warnings.warn("Convergence not achieved!")
@@ -165,8 +260,6 @@ def solve(A: spmatrix,
             solver = solver_eigen_scipy(**kwargs)
         elif isinstance(b, ndarray):
             solver = solver_direct_scipy(**kwargs)
-        else:
-            raise NotImplementedError("Provided argument types not supported")
 
     if x is not None and I is not None:
         if isinstance(b, spmatrix):
@@ -185,15 +278,14 @@ def solve(A: spmatrix,
 def _flatten_dofs(S: DofsCollection) -> ndarray:
     if S is None:
         return None
-    if isinstance(S, ndarray):
-        return S
-    elif isinstance(S, DofsView):
-        return S.flatten()
-    elif isinstance(S, dict):
-        return np.unique(
-            np.concatenate([S[key].flatten() for key in S])  # type: ignore
-        )
-    raise NotImplementedError("Unable to flatten the given set of DOFs.")
+    else:
+        if isinstance(S, ndarray):
+            return S
+        elif isinstance(S, DofsView):
+            return S.flatten()
+        elif isinstance(S, dict):
+            return np.unique(np.concatenate([S[key].flatten() for key in S]))
+        raise NotImplementedError("Unable to flatten the given set of DOFs.")
 
 
 def condense(A: spmatrix,
@@ -255,8 +347,6 @@ def condense(A: spmatrix,
     else:
         raise Exception("Give only I or only D!")
 
-    ret_value: CondensedSystem = (None,)
-
     if b is None:
         ret_value = (A[I].T[I].T,)
     else:
@@ -268,7 +358,7 @@ def condense(A: spmatrix,
             Aout = A[I].T[I].T
             bout = b[I] - A[I].T[D].T @ x[D]
         else:
-            raise Exception("Type of second arg not supported.")
+            raise Exception("The second arg type not supported.")
         ret_value = (Aout, bout)
 
     if expand:
@@ -363,15 +453,12 @@ def project(fun,
     return solve(M, f)
 
 
+# for backwards compatibility
 def L2_projection(a, b, c=None):
-    """For backwards compatibility."""
-    warnings.warn("'L2_projection' is superseded by 'project'.",
-                  DeprecationWarning)
+    """Superseded by :func:`skfem.utils.project`."""
     return project(a, basis_to=b, I=c)
 
 
 def derivative(a, b, c, d=0):
-    """For backwards compatibility."""
-    warnings.warn("'derivative' is superseded by 'project'.",
-                  DeprecationWarning)
+    """Superseded by :func:`skfem.utils.project`."""
     return project(a, basis_from=b, basis_to=c, diff=d)

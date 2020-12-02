@@ -32,10 +32,10 @@ class InteriorBasis(Basis):
     def __init__(self,
                  mesh: Mesh,
                  elem: Element,
-                 mapping: Optional[Mapping] = None,
-                 intorder: Optional[int] = None,
-                 elements: Optional[ndarray] = None,
-                 quadrature: Optional[Tuple[ndarray, ndarray]] = None):
+                 mapping: Mapping = None,
+                 intorder: int = None,
+                 elements: ndarray = None,
+                 quadrature: Tuple[ndarray, ndarray] = None):
         """Combine :class:`~skfem.mesh.Mesh` and :class:`~skfem.element.Element`
         into a set of precomputed global basis functions.
 
@@ -138,7 +138,7 @@ class InteriorBasis(Basis):
         """Return a function handle, which can be used for finding
         pointwise values of the given solution vector."""
 
-        finder = self.mesh.element_finder(mapping=self.mapping)
+        finder = self.mesh.element_finder()
 
         def interpfun(x):
             tris = finder(*x)

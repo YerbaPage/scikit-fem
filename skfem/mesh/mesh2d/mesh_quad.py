@@ -4,7 +4,7 @@ from typing import Optional, Type, Dict
 import numpy as np
 from numpy import ndarray
 
-from .mesh2d import Mesh2D
+from .mesh2d import Mesh2D, MeshType
 from .mesh_tri import MeshTri
 
 
@@ -88,9 +88,9 @@ class MeshQuad(Mesh2D):
         self._build_mappings()
 
     @classmethod
-    def init_tensor(cls: Type,
+    def init_tensor(cls: Type[MeshType],
                     x: ndarray,
-                    y: ndarray) -> Mesh2D:
+                    y: ndarray) -> MeshType:
         """Initialize a tensor product mesh.
 
         The mesh topology is as follows::
@@ -134,7 +134,7 @@ class MeshQuad(Mesh2D):
         return cls(p, t.astype(np.int64))
 
     @classmethod
-    def init_refdom(cls: Type) -> Mesh2D:
+    def init_refdom(cls: Type[MeshType]) -> MeshType:
         """Initialize a mesh that includes only the reference quad.
 
         The mesh topology is as follows::
@@ -150,9 +150,7 @@ class MeshQuad(Mesh2D):
             O-------------*
 
         """
-        p = np.array([[0., 0.], [1., 0.], [1., 1.], [0., 1.]]).T
-        t = np.array([[0, 1, 2, 3]]).T
-        return cls(p, t)
+        return cls()
 
     def _build_mappings(self):
         # do not sort since order defines counterclockwise order
@@ -301,7 +299,7 @@ class MeshQuad(Mesh2D):
         from skfem.element import ElementQuad1, ElementLineP1
         return MappingIsoparametric(self, ElementQuad1(), ElementLineP1())
 
-    def element_finder(self, mapping=None):
+    def element_finder(self):
         tri_finder = self._splitquads().element_finder()
 
         def finder(*args):

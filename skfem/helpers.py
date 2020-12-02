@@ -31,8 +31,10 @@ def curl(u: DiscreteField):
     if u.curl is not None:
         return u.curl
     elif u.grad is not None:
-        if u.grad.shape[0] == 2:
-            return np.array([u.grad[1], -u.grad[0]])
+        rot_grad = np.zeros_like(u.grad)
+        rot_grad[0] = u.grad[1]
+        rot_grad[1] = -u.grad[0]
+        return rot_grad
     raise NotImplementedError
 
 

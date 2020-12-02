@@ -40,50 +40,37 @@ class BilinearForm(Form):
     """
 
     def assemble(self,
-                 ubasis: Basis,
-                 vbasis: Optional[Basis] = None,
+                 u: Basis,
+                 v: Optional[Basis] = None,
                  **kwargs) -> Any:
 
-        if vbasis is None:
-            vbasis = ubasis
-        elif ubasis.X.shape[1] != vbasis.X.shape[1]:
+        if v is None:
+            v = u
+        elif u.X.shape[1] != v.X.shape[1]:
             raise ValueError("Quadrature mismatch: trial and test functions "
                              "should have same number of integration points.")
 
-        nt = ubasis.nelems
-        dx = ubasis.dx
-        wdict = FormDict({
-            **ubasis.default_parameters(),
-            **self.dictify(kwargs)
-        })
+        nt = u.nelems
+        dx = u.dx
+        w = FormDict({**u.default_parameters(), **self.dictify(kwargs)})
 
         # initialize COO data structures
-        sz = ubasis.Nbfun * vbasis.Nbfun * nt
+        sz = u.Nbfun * v.Nbfun * nt
         data = np.zeros(sz, dtype=self.dtype)
         rows = np.zeros(sz)
         cols = np.zeros(sz)
 
         # loop over the indices of local stiffness matrix
-        for j in range(ubasis.Nbfun):
-            for i in range(vbasis.Nbfun):
-                ixs = slice(nt * (vbasis.Nbfun * j + i),
-                            nt * (vbasis.Nbfun * j + i + 1))
-                rows[ixs] = vbasis.element_dofs[i]
-                cols[ixs] = ubasis.element_dofs[j]
-                data[ixs] = self._kernel(
-                    ubasis.basis[j],
-                    vbasis.basis[i],
-                    wdict,
-                    dx
-                )
+        for j in range(u.Nbfun):
+            for i in range(v.Nbfun):
+                ixs = slice(nt * (v.Nbfun * j + i),
+                            nt * (v.Nbfun * j + i + 1))
+                rows[ixs] = v.element_dofs[i]
+                cols[ixs] = u.element_dofs[j]
+                data[ixs] = self._kernel(u.basis[j], v.basis[i], w, dx)
 
         # TODO: allow user to change, e.g. cuda or petsc
-        return self._assemble_scipy_matrix(
-            data,
-            rows,
-            cols,
-            (vbasis.N, ubasis.N)
-        )
+        return self._assemble_scipy_matrix(data, rows, cols, (v.N, u.N))
 
     def _kernel(self, u, v, w, dx):
         return np.sum(self.form(*u, *v, w) * dx, axis=1)

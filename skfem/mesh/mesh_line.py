@@ -44,9 +44,9 @@ class MeshLine(Mesh):
             If `True`, perform mesh validity checks.
 
         """
-        if p is None:
+        if p is None and t is None:
             p = np.array([[0., 1.]], dtype=np.float_)
-        if p is not None and len(p.shape) == 1:
+        if len(p.shape) == 1:
             p = np.array([p])
         self.p = p
         self.boundaries = boundaries
@@ -164,17 +164,6 @@ class MeshLine(Mesh):
     def mapping(self):
         from skfem.mapping import MappingAffine
         return MappingAffine(self)
-
-    def element_finder(self, mapping=None):
-        ix = np.argsort(self.p)
-
-        def finder(x):
-            maxix = (x == np.max(self.p))
-            x[maxix] = x[maxix] - 1e-10  # special case in np.digitize
-            return np.argmax(np.digitize(x, self.p[0, ix[0]])[:, None]
-                             == self.t[0], axis=1)
-
-        return finder
 
     @staticmethod
     def strip_extra_coordinates(p: ndarray) -> ndarray:

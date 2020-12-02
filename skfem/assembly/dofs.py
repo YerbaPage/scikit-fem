@@ -20,7 +20,7 @@ class DofsView(NamedTuple):
     edge_rows: Union[ndarray, slice] = slice(None)
     interior_rows: Union[ndarray, slice] = slice(None)
 
-    def flatten(self) -> ndarray:
+    def flatten(self):
         """Return all DOF indices as a single array."""
         return np.unique(
             np.concatenate((
@@ -167,8 +167,8 @@ class Dofs:
     element_dofs: ndarray = None
     N: int = 0
 
-    topo: Mesh
-    element: Element
+    topo: Mesh = None
+    element: Element = None
 
     def __init__(self, topo, element):
 
@@ -252,18 +252,8 @@ class Dofs:
             An array of dofnames to skip.
 
         """
-        if self.element.nodal_dofs > 0 or self.element.edge_dofs > 0:
-            nodal_ix, edge_ix = self.topo.expand_facets(facets)
-
-        nodal_ix = (np.empty((0,), dtype=np.int64)
-                    if self.element.nodal_dofs == 0
-                    else nodal_ix)
-        edge_ix = (np.empty((0,), dtype=np.int64)
-                   if self.element.edge_dofs == 0
-                   else edge_ix)
-        facet_ix = (np.empty((0,), dtype=np.int64)
-                    if self.element.facet_dofs == 0
-                    else facets)
+        nodal_ix, edge_ix = self.topo.expand_facets(facets)
+        facet_ix = facets
 
         if skip_dofnames is None:
             skip_dofnames = []
@@ -280,8 +270,8 @@ class Dofs:
     def _by_name(self,
                  dofs: ndarray,
                  off: int = 0,
-                 ix: ndarray = None,
-                 rows: ndarray = None):
+                 ix: Union[ndarray, slice] = None,
+                 rows: Union[ndarray, slice] = None):
 
         n_dofs = dofs.shape[0]
         n_ents = dofs.shape[1] if ix is None else len(ix)

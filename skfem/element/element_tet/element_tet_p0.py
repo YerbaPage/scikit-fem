@@ -13,7 +13,4 @@ class ElementTetP0(ElementH1):
     mesh_type = MeshTet
 
     def lbasis(self, X, i):
-        if i == 0:
-            return 1. + 0. * X[0], 0. * X
-        else:
-            self._index_error()
+        return 1. + 0. * X[0], 0. * X

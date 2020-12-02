@@ -1,5 +1,3 @@
-from typing import List, Any
-
 import numpy as np
 from numpy import ndarray
 
@@ -56,9 +54,8 @@ class ElementComposite(Element):
 
     def _deduce_bfun(self, i: int):
         """Deduce component and basis function for i'th index."""
-        counts: ndarray = sum([e._bfun_counts() for e in self.elems])
-        tmp: List[Any] = []
-        ns: List[Any] = []
+        counts = sum([e._bfun_counts() for e in self.elems])
+        ns = []
         if counts[0] > 0:
             tmp = sum([[j] * self.elems[j].nodal_dofs
                        for j in range(len(self.elems))], [])

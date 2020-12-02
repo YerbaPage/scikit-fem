@@ -20,27 +20,25 @@ def draw(m, **kwargs) -> Axes:
 
 
 @draw.register(InteriorBasis)
-def draw_basis(ib: InteriorBasis, **kwargs) -> Axes:
-    Nrefs = kwargs["Nrefs"] if "Nrefs" in kwargs else 1
-    m, _ = ib.refinterp(ib.mesh.p[0], Nrefs=Nrefs)
-    return draw(m, boundaries_only=True, **kwargs)
+def _(ib: InteriorBasis, **kwargs) -> Axes:
+    return draw(ib.mesh, **kwargs)
 
 
 @draw.register(MeshTet)
-def draw_meshtet(m: MeshTet, **kwargs) -> Axes:
+def _(m: MeshTet, **kwargs) -> Axes:
     """Visualize a tetrahedral mesh by drawing the boundary facets."""
     bnd_facets = m.boundary_facets()
     fig = plt.figure()
     ax = Axes3D(fig)
     indexing = m.facets[:, bnd_facets].T
-    ax.plot_trisurf(m.p[0], m.p[1], m.p[2],
+    ax.plot_trisurf(m.p[0, :], m.p[1, :], m.p[2, :],
                     triangles=indexing, cmap=plt.cm.viridis, edgecolor='k')
     ax.set_axis_off()
     return ax
 
 
 @draw.register(Mesh2D)
-def draw_mesh2d(m: Mesh2D, **kwargs) -> Axes:
+def _(m: Mesh2D, **kwargs) -> Axes:
     """Visualise a two-dimensional mesh by drawing the edges.
 
     Parameters
@@ -75,18 +73,14 @@ def draw_mesh2d(m: Mesh2D, **kwargs) -> Axes:
         ax.set_axis_off()
     else:
         ax = kwargs["ax"]
-    if "boundaries_only" in kwargs:
-        facets = m.facets[:, m.boundary_facets()]
-    else:
-        facets = m.facets
     # faster plotting is achieved through
     # None insertion trick.
     xs = []
     ys = []
-    for s, t, u, v in zip(m.p[0, facets[0]],
-                          m.p[1, facets[0]],
-                          m.p[0, facets[1]],
-                          m.p[1, facets[1]]):
+    for s, t, u, v in zip(m.p[0, m.facets[0, :]],
+                          m.p[1, m.facets[0, :]],
+                          m.p[0, m.facets[1, :]],
+                          m.p[1, m.facets[1, :]]):
         xs.append(s)
         xs.append(u)
         xs.append(None)
@@ -100,10 +94,10 @@ def draw_mesh2d(m: Mesh2D, **kwargs) -> Axes:
             ax.text(m.p[0, itr], m.p[1, itr], str(itr))
 
     if "facet_numbering" in kwargs:
-        mx = .5*(m.p[0, m.facets[0]] +
-                 m.p[0, m.facets[1]])
-        my = .5*(m.p[1, m.facets[0]] +
-                 m.p[1, m.facets[1]])
+        mx = .5*(m.p[0, m.facets[0, :]] +
+                 m.p[0, m.facets[1, :]])
+        my = .5*(m.p[1, m.facets[0, :]] +
+                 m.p[1, m.facets[1, :]])
         for itr in range(m.facets.shape[1]):
             ax.text(mx[itr], my[itr], str(itr))
 
@@ -123,7 +117,7 @@ def plot(m, u, **kwargs) -> Axes:
 
 
 @plot.register(MeshLine)
-def plot_meshline(m: MeshLine, z: ndarray, **kwargs):
+def _(m: MeshLine, z: ndarray, **kwargs):
     """Plot a function defined at the nodes of the 1D mesh."""
     if "ax" not in kwargs:
         # create new figure
@@ -135,10 +129,10 @@ def plot_meshline(m: MeshLine, z: ndarray, **kwargs):
         ax = kwargs["ax"]
 
     color = kwargs["color"] if "color" in kwargs else 'ko-'
-    for y1, y2, s, t in zip(z[m.t[0]],
-                            z[m.t[1]],
-                            m.p[0, m.t[0]],
-                            m.p[0, m.t[1]]):
+    for y1, y2, s, t in zip(z[m.t[0, :]],
+                            z[m.t[1, :]],
+                            m.p[0, m.t[0, :]],
+                            m.p[0, m.t[1, :]]):
         xs.append(s)
         xs.append(t)
         xs.append(None)
@@ -151,7 +145,7 @@ def plot_meshline(m: MeshLine, z: ndarray, **kwargs):
 
 
 @plot.register(MeshTri)
-def plot_meshtri(m: MeshTri, z: ndarray, **kwargs) -> Axes:
+def _(m: MeshTri, z: ndarray, **kwargs) -> Axes:
     """Visualise piecewise-linear function on a triangular mesh.
 
     Parameters
@@ -191,11 +185,10 @@ def plot_meshtri(m: MeshTri, z: ndarray, **kwargs) -> Axes:
     else:
         ax = kwargs["ax"]
 
-    im = ax.tripcolor(m.p[0], m.p[1], m.t.T, z,
+    im = ax.tripcolor(m.p[0, :], m.p[1, :], m.t.T, z,
                       **{k: v for k, v in kwargs.items()
                          if k in ['shading',
                                   'edgecolors',
-                                  'cmap',
                                   'vmin',
                                   'vmax']})
 
@@ -205,7 +198,7 @@ def plot_meshtri(m: MeshTri, z: ndarray, **kwargs) -> Axes:
 
 
 @plot.register(MeshQuad)
-def plot_meshquad(m: MeshQuad, z, **kwargs):
+def _(m: MeshQuad, z, **kwargs):
     """Visualise nodal functions on quadrilateral meshes.
 
     The quadrilaterals are split into two triangles
@@ -221,7 +214,7 @@ def plot_meshquad(m: MeshQuad, z, **kwargs):
 
 
 @plot.register(InteriorBasis)
-def plot_basis(basis: InteriorBasis, z: ndarray, **kwargs) -> Axes:
+def _(basis: InteriorBasis, z: ndarray, **kwargs) -> Axes:
     """Plot on a refined mesh via :meth:`InteriorBasis.refinterp`."""
     Nrefs = kwargs["Nrefs"] if "Nrefs" in kwargs else 1
     return plot(*basis.refinterp(z, Nrefs=Nrefs), **kwargs)
@@ -234,7 +227,7 @@ def plot3(m, z: ndarray, **kwargs) -> Axes:
 
 
 @plot3.register(MeshTri)
-def plot3_meshtri(m: MeshTri, z: ndarray, **kwargs) -> Axes:
+def _(m: MeshTri, z: ndarray, **kwargs) -> Axes:
     """Visualise piecewise-linear function, 3D plot.
 
     Parameters
@@ -265,7 +258,7 @@ def plot3_meshtri(m: MeshTri, z: ndarray, **kwargs) -> Axes:
 
 
 @plot3.register(InteriorBasis)
-def plot3_basis(basis: InteriorBasis, z: ndarray, **kwargs) -> Axes:
+def _(basis: InteriorBasis, z: ndarray, **kwargs) -> Axes:
     """Plot on a refined mesh via :meth:`InteriorBasis.refinterp`."""
     Nrefs = kwargs["Nrefs"] if "Nrefs" in kwargs else 1
     return plot3(*basis.refinterp(z, Nrefs=Nrefs), **kwargs)
